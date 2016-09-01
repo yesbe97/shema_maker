@@ -21,6 +21,7 @@ use PHPExcel_Cell;
 use PHPExcel_Cell_DataType;
 use PHPExcel_Cell_IValueBinder;
 use PHPExcel_Cell_DefaultValueBinder;
+$insert = "test";
 
 class MyValueBinder extends PHPExcel_Cell_DefaultValueBinder implements PHPExcel_Cell_IValueBinder
 {
@@ -39,56 +40,60 @@ class MyValueBinder extends PHPExcel_Cell_DefaultValueBinder implements PHPExcel
 }
 class ImportController extends Controller
 {
+	private $insert;
+
+	public function __construct() {
+		$insert = "INIT!";
+	}
     /**
      * Show the form for creating a new resource.
      *
      * @return Response
      */
-    public function import(Request $request)
+    public function import()
     {
         return view('import');
     }
     
     public function processImport(Request $request)
-    {
+	{
+		global $insert;
 		ini_set('memory_limit', '-1');
 		ini_set('max_execution_time', 300);
-        if($request->hasFile('excel_file')){
+		if ($request->hasFile('excel_file')) {
 			$path = $request->file('excel_file')->getRealPath();
 			$myValueBinder = new MyValueBinder;
 			$data = Excel::setValueBinder($myValueBinder)->load($path, "UTF-8")->get();
 
-			if(!empty($data) && $data->count()){
+			if (!empty($data) && $data->count()) {
 				foreach ($data as $key => $value) {
-					if (!empty($value->name)){
-						$insert[] = [
-							'name' => $value->naam,
-							'student_nr' => $value->Studentnummer,
-							'class' => $value->klas,
-							'preference_1' => $value->voorkeur1,
-							'preference_2' => $value->voorkeur2,
-							'preference_3' => $value->voorkeur3,
-							'preference_4' => $value->voorkeur4,
-							'preference_5' => $value->voorkeur5,
-						];
-					}
+					$insert[] = [
+						'name' => $value->naam,
+						'student_nr' => $value->studentnummer,
+						'class' => $value->klas,
+						'preference_1' => $value->voorkeur1,
+						'preference_2' => $value->voorkeur2,
+						'preference_3' => $value->voorkeur3,
+						'preference_4' => $value->voorkeur4,
+						'preference_5' => $value->voorkeur5,
+					];
 				}
 
-				if(!empty($insert)){
+				if (!empty($insert)) {
 					///continue
 					$sports[] = [
 						"1. Breakdance",
-						"2. Fietstocht",
+						"2. Fietstocht (neem je eigen fiets mee)",
 						"3. Fitness",
 						"4. Crossfit/bootcamp",
 						"5. Kickboksen",
 						"6. Spinning",
-						"7. Hardlopen",
+						"7. Hardlopen (beginners en gevorderden)",
 						"8. Beachvolleybal",
 						"9. Stadswandeling",
 						"10. Casting",
 						"11. Unihockey",
-						"12. Roeien",
+						"12. 12. Roeien (zorg dat je op de fiets komt of bij iemand achterop kunt; je moet kunnen zwemmen)",
 						"13. Bamboebouwen",
 						"14. Voetbal",
 						"15. In Control",
@@ -111,74 +116,26 @@ class ImportController extends Controller
 						"32. Tai Chi",
 						"33. Vlog WeHelpen",
 					];
-					print_r($insert);exit;
+
+					Excel::create('Filename', function ($excel) {
+						$excel->setTitle("Rooster life style day");
+						$excel->setCreator("N. van Driel");
+						$excel->setDescription("Rooster life style day");
+
+						$excel->sheet("rooster", function ($sheet) {
+							global $insert;
+							$sheet->row(1, array('Studentnummer', 'Naam', "Klas", "voorkeuren >>>"));
+							$index = 2;
+							foreach ($insert as $set_result) {
+								$sheet->row($index, array($set_result["student_nr"], ucfirst($set_result["name"]), $set_result["class"]));
+								$index++;
+							}
 
 
-
-
-
-
-
-					// ask the service for a Excel5
-					$phpExcelObject = $this->get('phpexcel')->createPHPExcelObject();
-
-					$phpExcelObject->getProperties()->setCreator("kopadmin")
-						->setLastModifiedBy("KopAdmin")
-						->setTitle("Exported Activity ".$year)
-						->setSubject("")
-						->setDescription("Exported Activity ".$year)
-						->setKeywords("Activity kopadmin")
-						->setCategory("Export");
-					$phpExcelObject->setActiveSheetIndex(0);
-
-					$alphabet = array(1 => 'a', 2 => 'b', 3 => 'c', 4 => 'd', 5 => 'e', 6 => 'f', 7 => 'g', 8 => 'h', 9 => 'i', 10 => 'j',11 => 'k', 12 => 'l', 13 => 'm', 14 => 'n', 15 => 'o', 16 => 'p', 17 => 'q', 18 => 'r', 19 => 's', 20 => 't', 21 => 'u', 22 => 'v', 23 => 'w', 24 => 'x', 25 => 'y', 26 => 'z',);
-
-						$phpExcelObject->createSheet();
-						$phpExcelObject->setActiveSheetIndex(0);
-						$phpExcelObject->getActiveSheet()->setTitle("Rooster");
-						$sheet = $phpExcelObject->getActiveSheet(0);
-
-						//////////////////////////////////////////////////////////////////////////////////////////////////// Add headers
-						$sheet->setCellValue("A1", "Studentennummer");
-
-						$index_AcT = 2;
-						foreach ($users as $user) {
-							$sheet->setCellValue(strtoupper($alphabet[$index_AcT]) . "1", ucfirst($user['username']));
-							$index_AcT++;
-						}
-						$sheet->setCellValue(strtoupper($alphabet[$index_AcT]) . "1", 'Totaal per type');
-
-						$index_user = 2;
-						foreach ($Activity_templates as $Activity_template) {
-							$sheet->setCellValue("A" . $index_user, $Activity_template['name']);
-							$index_user++;
-						}
-						$sheet->setCellValue("A" . $index_user, "Totaal per gebruiker");
-
-
-					$phpExcelObject->getActiveSheet()->getColumnDimension('A')->setWidth(50);
-					$phpExcelObject->getActiveSheet()->getColumnDimension(strtoupper($alphabet[count($users)+2]))->setWidth(15);
-
-					// create the writer
-					$phpExcelObject->setActiveSheetIndex(0);
-					$writer = $this->get('phpexcel')->createWriter($phpExcelObject, 'Excel5');
-					// create the response
-					$response = $this->get('phpexcel')->createStreamedResponse($writer);
-					// adding headers
-					$response->headers->set('Content-Type', 'text/vnd.ms-excel; charset=utf-8');
-					$response->headers->set('Content-Disposition', 'attachment;filename=activity-export-'.$year.'.xls');
-
-					return $response;
-
-
-
-
-
-
+						});
+					})->export('xls');
 				}
 			}
 		}
-
-		return back();
-    }
+	}
 }
