@@ -21,7 +21,6 @@ use PHPExcel_Cell;
 use PHPExcel_Cell_DataType;
 use PHPExcel_Cell_IValueBinder;
 use PHPExcel_Cell_DefaultValueBinder;
-$insert = "test";
 
 class MyValueBinder extends PHPExcel_Cell_DefaultValueBinder implements PHPExcel_Cell_IValueBinder
 {
@@ -40,10 +39,20 @@ class MyValueBinder extends PHPExcel_Cell_DefaultValueBinder implements PHPExcel
 }
 class ImportController extends Controller
 {
+	//set global variables
 	private $insert;
+	private $sports;
+	private $capacity;
+	private $applicant_a_round;
+	private $alphabet;
 
 	public function __construct() {
-		$insert = "INIT!";
+		//set global variables
+		$insert = "";
+		$sports = "";
+		$capacity = "";
+		$applicant_a_round = "";
+		$alphabet = "";
 	}
     /**
      * Show the form for creating a new resource.
@@ -58,15 +67,26 @@ class ImportController extends Controller
     public function processImport(Request $request)
 	{
 		global $insert;
+		global $sports;
+		global $capacity;
+		global $alphabet;
+
+		//Some config for time and memory use
 		ini_set('memory_limit', '-1');
 		ini_set('max_execution_time', 300);
+
+
+		//Check if the file is a excel file
 		if ($request->hasFile('excel_file')) {
+			//catch the data from the file
 			$path = $request->file('excel_file')->getRealPath();
 			$myValueBinder = new MyValueBinder;
 			$data = Excel::setValueBinder($myValueBinder)->load($path, "UTF-8")->get();
 
+			//Check if there is data recieved
 			if (!empty($data) && $data->count()) {
 				foreach ($data as $key => $value) {
+					//Put the data in a clean and in a better readable array
 					$insert[] = [
 						'name' => $value->naam,
 						'student_nr' => $value->studentnummer,
@@ -79,8 +99,10 @@ class ImportController extends Controller
 					];
 				}
 
+				//Dubble check if the data is stored
 				if (!empty($insert)) {
-					///continue
+					//Make a array with all the types of sports.
+					//todo *idea* make a import for the sport types
 					$sports[] = [
 						"1. Breakdance",
 						"2. Fietstocht (neem je eigen fiets mee)",
@@ -114,25 +136,84 @@ class ImportController extends Controller
 						"30. Design workshop",
 						"31. Curves",
 						"32. Tai Chi",
-						"33. Vlog WeHelpen",
 					];
 
-					Excel::create('Filename', function ($excel) {
+					//Make a array with all the capacity of all the sport types
+					//"" means there is no capacity, there will only be one round for the corresponding sport type
+					//todo *idea* make a import for the sport capacity
+					$capacity[] = ["", "", 15, 20, 20, 11, "", 24, 15, 10, 24, 8, 16, 24, 15, 20, 20, 20, 20, 5, 5, 15, 15, 15, 16, 16, 15, 5, 15, 15, 14, 10,];
+
+					//Make a array with all the letters of the alphabet. This will be used later where I will need to set data to a specific row and column combo.
+					$alphabet = array(
+						1 => 'a', 2 => 'b', 3 => 'c', 4 => 'd', 5 => 'e', 6 => 'f', 7 => 'g', 8 => 'h', 9 => 'i', 10 => 'j',
+						11 => 'k', 12 => 'l', 13 => 'm', 14 => 'n', 15 => 'o', 16 => 'p', 17 => 'q', 18 => 'r', 19 => 's', 20 => 't',
+						21 => 'u', 22 => 'v', 23 => 'w', 24 => 'x', 25 => 'y', 26 => 'z',
+					);
+
+					//Start the creation of the excel file that contains the rooster
+					Excel::create('Rooster life style day', function ($excel) {
+						//Set some properties
 						$excel->setTitle("Rooster life style day");
 						$excel->setCreator("N. van Driel");
 						$excel->setDescription("Rooster life style day");
 
+						//Create a tab
 						$excel->sheet("rooster", function ($sheet) {
 							global $insert;
-							$sheet->row(1, array('Studentnummer', 'Naam', "Klas", "voorkeuren >>>"));
-							$index = 2;
-							foreach ($insert as $set_result) {
-								$sheet->row($index, array($set_result["student_nr"], ucfirst($set_result["name"]), $set_result["class"]));
+							global $sports;
+							global $capacity;
+							global $alphabet;
+							global $applicant_a_round;
+
+							//Set the headers
+							$sheet->row(1, array('Sport', 'Ronde 1', "Ronde 2", "Ronde 3", "Ronde 4", "Ronde 5"));
+
+							//Some new vars to be defined
+							$index = 1;
+
+							//Foreach loop to loop through all the sport types
+							foreach ($sports[0] as $sport){
+
+								//Set sport name in on the most left row
+								$sheet->row($index, array($sport));
+
+								//Some new vars to be defined
+								$applicant_a_round = "";
+								$round_count = 0;
+								$column = 2;
+
+								//Start reading the applicants there data
+								foreach ($insert as $set_result) {
+
+									//Check if the applicants preference is the same as the sport
+									if ($set_result["preference_".($column-1)] == $sport) {
+
+										//Check if the round capacity has been reached
+										$cap_for_round = $capacity[0][$index];
+										if ($round_count > $cap_for_round && $cap_for_round != ""){
+											$applicant_a_round = "";
+											$column++;
+										}
+
+										//Create a name(number), list for in the round
+										$applicant_a_round .= ucfirst($set_result["name"]) . "(" . $set_result["student_nr"] . "), ";
+
+										//Add the list of names to the corresponding column/row combo
+										//Here the alphabet array is used here a example of the function call:
+										//$sheet->cell(B3, function($cell) {
+										$sheet->cell($alphabet[$column].$index, function($cell) {
+											global $applicant_a_round;
+											$cell->setValue($applicant_a_round);
+										});
+										//Add 1 to this var to go to the next round
+										$round_count++;
+									}
+								}
+								//Add 1 to this var to go to the next sport type
 								$index++;
 							}
-
-
 						});
+					//Return the excel file. It downloads automatically
 					})->export('xls');
 				}
 			}
