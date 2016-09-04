@@ -141,7 +141,7 @@ class ImportController extends Controller
 					//Make a array with all the capacity of all the sport types
 					//"" means there is no capacity, there will only be one round for the corresponding sport type
 					//todo *idea* make a import for the sport capacity
-					$capacity[] = ["", "", 15, 20, 20, 11, "", 24, 15, 10, 24, 8, 16, 24, 15, 20, 20, 20, 20, 5, 5, 15, 15, 15, 16, 16, 15, 5, 15, 15, 14, 10,];
+					$capacity[] = ["", "", 15, 20, 20, 11, "", 24, 15, 10, 24, 8, 16, 5, 15, 20, 20, 20, 20, 5, 5, 15, 15, 15, 16, 16, 15, 5, 15, 15, 14, 10,];
 
 					//Make a array with all the letters of the alphabet. This will be used later where I will need to set data to a specific row and column combo.
 					$alphabet = array(
@@ -149,6 +149,57 @@ class ImportController extends Controller
 						11 => 'k', 12 => 'l', 13 => 'm', 14 => 'n', 15 => 'o', 16 => 'p', 17 => 'q', 18 => 'r', 19 => 's', 20 => 't',
 						21 => 'u', 22 => 'v', 23 => 'w', 24 => 'x', 25 => 'y', 26 => 'z',
 					);
+
+
+					$rooster_array = [];
+					$round_array = [];
+					$rooster_array = array_fill_keys($sports[0], "");
+
+					foreach ($sports[0] as $sport) {
+						$round_array= array("Round 1", "Round 2", "Round 3", "Round 4", "Round 5");
+						$rooster_array[$sport] = array_fill_keys($round_array, "");
+					}
+
+
+					$index = 2;
+					//Foreach loop to loop through all the sport types
+					foreach ($sports[0] as $sport){
+
+						//Some new vars to be defined
+						$applicant_a_round = "";
+						$round_count = 0;
+						$column = 2;
+
+						//Start reading the applicants there data
+						foreach ($insert as $set_result) {
+
+							//Check if the round capacity has been reached
+							$cap_for_round = $capacity[0][($index-2)];
+							if ($round_count >= $cap_for_round && $cap_for_round != ""){
+								$applicant_a_round = "";
+								$round_count = "";
+								$column++;
+							}
+
+							//Check if the applicants preference is the same as the sport
+							if (isset($set_result["preference_1"]) && $set_result["preference_1"] == $sport) {
+//							if (isset($set_result["preference_".($column-1)]) && $set_result["preference_".($column-1)] == $sport) {
+								//Create a name(number), list for in the round
+								$applicant_a_round .= ucfirst($set_result["name"]) . "(" . $set_result["student_nr"] . "), ";
+								$rooster_array[$sport]["Round ".($column-1)] = $applicant_a_round;
+								$round_count++;
+							}
+						}
+						//Add 1 to this var to go to the next sport type
+						$index++;
+					}
+var_dump($rooster_array);exit;
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 
 					//Start the creation of the excel file that contains the rooster
 					Excel::create('Rooster life style day', function ($excel) {
@@ -169,7 +220,7 @@ class ImportController extends Controller
 							$sheet->row(1, array('Sport', 'Ronde 1', "Ronde 2", "Ronde 3", "Ronde 4", "Ronde 5"));
 
 							//Some new vars to be defined
-							$index = 1;
+							$index = 2;
 
 							//Foreach loop to loop through all the sport types
 							foreach ($sports[0] as $sport){
@@ -185,26 +236,33 @@ class ImportController extends Controller
 								//Start reading the applicants there data
 								foreach ($insert as $set_result) {
 
-									//Check if the applicants preference is the same as the sport
-									if ($set_result["preference_".($column-1)] == $sport) {
+									//Check if the round capacity has been reached
+									$cap_for_round = $capacity[0][($index-2)];
+									if ($round_count >= $cap_for_round && $cap_for_round != ""){
+										$applicant_a_round = "";
+										$round_count = "";
+										$column++;
+									}
 
-										//Check if the round capacity has been reached
-										$cap_for_round = $capacity[0][$index];
-										if ($round_count > $cap_for_round && $cap_for_round != ""){
-											$applicant_a_round = "";
-											$column++;
-										}
+									//Check if the applicants preference is the same as the sport
+									if (isset($set_result["preference_".($column-1)]) && $set_result["preference_".($column-1)] == $sport) {
 
 										//Create a name(number), list for in the round
 										$applicant_a_round .= ucfirst($set_result["name"]) . "(" . $set_result["student_nr"] . "), ";
 
+
+
+
+
+
 										//Add the list of names to the corresponding column/row combo
 										//Here the alphabet array is used here a example of the function call:
 										//$sheet->cell(B3, function($cell) {
-										$sheet->cell($alphabet[$column].$index, function($cell) {
-											global $applicant_a_round;
-											$cell->setValue($applicant_a_round);
-										});
+//										$sheet->cell($alphabet[$column].$index, function($cell) {
+//											global $applicant_a_round;
+//											$cell->setValue($applicant_a_round);
+//											// todo: Now every insert result the system will write the $applicant_a_round value to the new excel file. There needs to be a change so it will only write the data when there are no more insert results or if the next round starts.
+//										});
 										//Add 1 to this var to go to the next round
 										$round_count++;
 									}
